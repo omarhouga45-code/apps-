@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Good Reason Media | Market Intelligence & Lead Extractor</title>
-    <script src="https://cdn.jsdelivr.net/npm/@google/generative-ai@0.1.1/dist/index.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     <style>
         :root {
@@ -59,11 +58,11 @@
             <div class="form-grid">
                 <div class="form-group">
                     <label for="niche">النيش أو الكلمة المفتاحية (Keyword / Niche)</label>
-                    <input type="text" id="niche" placeholder="مثال: Cosmetics, ملابس, مطاعم...">
+                    <input type="text" id="niche" placeholder="مثال: clinic, ملابس, مطاعم...">
                 </div>
                 <div class="form-group">
                     <label for="location">المدينة / المنطقة فالمغرب</label>
-                    <input type="text" id="location" placeholder="مثال: Casablanca, Marrakech, Morocco...">
+                    <input type="text" id="location" placeholder="مثال: morocco agadir, casablanca...">
                 </div>
             </div>
 
@@ -118,36 +117,47 @@
             document.getElementById('results').style.display = 'none';
             document.getElementById('runBtn').disabled = true;
 
+            const promptText = `Act as an expert Market Intelligence and Data Extraction system for Moroccan online businesses and market leads.
+The user is searching for: Niche/Keyword "${niche}" in location "${location}".
+
+Generate realistic, highly accurate data and market analysis for active businesses, brands, or stores in Morocco matching this criteria. Provide at least 5 to 7 detailed entries.
+
+You MUST output your response strictly in valid JSON format, with no markdown code blocks around it if possible, or clean JSON.
+Structure it precisely as follows:
+{
+  "insights": "Detailed analysis in Arabic/Darija about the current market trends, dominant offers, and target audience profile for this niche in Morocco.",
+  "leads": [
+    {
+      "name": "Business Name",
+      "category": "Niche Category",
+      "offer": "Core Product/Service Offer",
+      "contact": "URL or Phone/Handle",
+      "target": "Target Audience details"
+    }
+  ]
+}`;
+
             try {
-                const { GoogleGenerativeAI } = window.GoogleGenerativeAI;
-                const genAI = new GoogleGenerativeAI(apiKey);
-                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: promptText }]
+                        }]
+                    })
+                });
 
-                const prompt = `Act as an expert Market Intelligence and Data Extraction system for Moroccan online businesses and market leads.
-                The user is searching for: Niche/Keyword "${niche}" in location "${location}".
-                
-                Generate realistic, highly accurate simulated data and market analysis for active businesses, brands, or stores in Morocco matching this criteria. Provide at least 5 to 7 detailed entries.
-                
-                You MUST output your response strictly in valid JSON format with no markdown formatting blocks wrapping it if possible, or standard markdown JSON. 
-                Structure it precisely as follows:
-                {
-                  "insights": "Detailed analysis in Arabic/Darija about the current market trends, dominant offers, and target audience profile for this niche in Morocco.",
-                  "leads": [
-                    {
-                      "name": "Business Name",
-                      "category": "Niche Category",
-                      "offer": "Core Product/Service Offer",
-                      "contact": "URL or Phone/Handle",
-                      "target": "Target Audience details"
-                    }
-                  ]
-                }`;
+                if (!response.ok) {
+                    throw new Error('فشل الاتصال بـ API، تأكد من صحة L\'clé.');
+                }
 
-                const result = await model.generateContent(prompt);
-                const response = await result.response;
-                let text = response.text();
+                const result = await response.json();
+                let text = result.candidates[0].content.parts[0].text;
                 
-                // Clean markdown code blocks if present
+                // Clean markdown formatting if any
                 text = text.replace(/```json/g, '').replace(/```/g, '').trim();
                 const data = JSON.parse(text);
 
@@ -177,7 +187,6 @@
             } catch (error) {
                 console.error(error);
                 alert('حدث خطأ أثناء المعالجة. تأكد أن L\'clé API صحيحة ومفعلة.');
-                document.getElementById('loading').style.display.display = 'none';
             } finally {
                 document.getElementById('runBtn').disabled = false;
                 document.getElementById('loading').style.display = 'none';
